@@ -30,30 +30,34 @@ data {
   int<lower=1> N_obs;
   array[N_obs] real x_obs;
   vector[N_obs] y_obs;
+  vector[N_obs] temp_obs;
   
   int<lower=1> N_pred;
   array[N_pred] real x_pred;
 }
 
 parameters {
+  real beta;
   real<lower=0> rho;
   real<lower=0> gamma;
   real<lower=0> sigma;
 }
 
 model {
+  vector[N_obs] mu_obs = beta * temp_obs;
   matrix[N_obs, N_obs] cov =  gp_exp_quad_cov(x_obs, gamma, rho)
                              + diag_matrix(rep_vector(square(sigma), N_obs));
   matrix[N_obs, N_obs] L_cov = cholesky_decompose(cov);
   
-  gamma ~ normal(0,1);
-  rho ~ normal(5, 2);
-  sigma ~ normal(0,1);
+  beta ~ normal(0, 0.5);
+  gamma ~ normal(0, 1);
+  rho ~ normal(100, 50);
+  sigma ~ normal(0, 1);
 
-  y_obs ~ multi_normal_cholesky(rep_vector(0, N_obs), L_cov);
+  y_obs ~ multi_normal_cholesky(mu_obs, L_cov);
 }
 
 generated quantities {
-  vector[N_pred] f_pred = gp_pred_rng(x_pred, y_obs, x_obs, gamma, rho, sigma, 1e-10);
+  vector[N_pred] f_pred = gp_pred_rng(x_pred, y_obs - beta * temp_obs, x_obs, gamma, rho, sigma, 1e-10);
   array[N_pred] real y_pred = normal_rng(f_pred, sigma);
 }
