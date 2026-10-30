@@ -13,6 +13,10 @@ setwd("C:/PhD/Project/PhD_thesis/seeingTrees/analyses")
 util <- new.env()
 source("mcmc_analysis_tools_rstan.R", local=util)
 source("mcmc_visualization_tools.R", local=util)
+# Read in the climate data
+
+climate <- readRDS("C:/PhD/Project/PhD_thesis/seeingTrees/data/climate/wldas_climpredictors_updated.rds")
+
 # Read in the ring width data
 AB08THSE <- read.rwl("C:/PhD/Project/PhD_thesis/seeingTrees/data/treeCores/AB08_TSHE_dated.rwl", format = "auto")
 
@@ -28,7 +32,6 @@ ring <- sapply(split(seq_along(treeID), treeID), function(i) {
 })
 
 rownames(ring) <- rownames(AB08THSE)
-class(ring)
 
 # Get data for only one tree
 oneTree <- data.frame(
@@ -38,20 +41,31 @@ oneTree <- data.frame(
 plot(width~year, oneTree, pch=16, cex=0.25)
 lines(width~year, oneTree)
 
-x <- oneTree$year-1000
-y <- oneTree$width*10
+# subset to years with climate data
+all_years <- 1980:2023
+oneTree_1980 <- oneTree[oneTree$year %in% all_years, ]
+
+x <- oneTree_1980$year-1000
+y <- oneTree_1980$width*10
+
+
+## subset to AB08
+climate_AB08 <- climate[climate$plotname == "AB08",]
+gdd <- climate_AB08$gdd_ings/100
+
 
 data <- list(
   N_obs = length(x),
   x_obs = x,
   y_obs = y,
+  temp_obs = gdd,
   
-  N_pred = 100,
-  x_pred = seq(100, 1000, length.out = 100)
+  N_pred = 200,
+  x_pred = seq(100, 1000, length.out = 200)
 )
 
 modelhere <- stan_model('stan/gpTreeGrowth.stan')
-fit <- sampling(modelhere, data = data, chains = 4, cores = 4)
+fit <- sampling(modelhere, data = data, iter = 4000, warmup = 3000, chains = 4, cores = 4)
 
 diagnostics <- util$extract_hmc_diagnostics(fit)
 util$check_all_hmc_diagnostics(diagnostics)
@@ -79,8 +93,9 @@ points(data$x_obs, data$y_obs, pch=16, cex=0.5, col="black")
 idx <- which(data$x_pred >= min(data$x_obs))
 
 names_sub <- paste0('y_pred[', idx, ']')
-util$plot_conn_pushforward_quantiles(samples, names_sub, data$x_pred[idx])
-points(data$x_obs, data$y_obs, pch=16, cex=1, col="white")
-points(data$x_obs, data$y_obs, pch=16, cex=0.5, col="black")
+shift <- 1000
+util$plot_conn_pushforward_quantiles(samples, names_sub, data$x_pred[idx] + shift)
+points(data$x_obs + shift, data$y_obs, pch=16, cex=1, col="white")
+points(data$x_obs + shift, data$y_obs, pch=16, cex=0.5, col="black")
 
 
