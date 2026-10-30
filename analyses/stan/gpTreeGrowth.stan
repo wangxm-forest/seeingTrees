@@ -59,5 +59,5 @@ model {
 
 generated quantities {
   vector[N_pred] f_pred = gp_pred_rng(x_pred, y_obs - beta * temp_obs, x_obs, gamma, rho, sigma, 1e-10);
-  array[N_pred] real y_pred = normal_rng(f_pred + beta * mean(temp_obs), sigma);
+  array[N_pred] real y_pred = normal_rng(f_pred + beta * temp_obs, sigma);
 }

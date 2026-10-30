@@ -60,9 +60,9 @@ data <- list(
   y_obs = y,
   temp_obs = gdd,
   
-  N_pred = 200,
-  x_pred = seq(100, 1000, length.out = 200)
-)
+  N_pred = length(x),
+  x_pred = x)
+
 
 modelhere <- stan_model('stan/gpTreeGrowth.stan')
 fit <- sampling(modelhere, data = data, iter = 4000, warmup = 3000, chains = 4, cores = 4)
