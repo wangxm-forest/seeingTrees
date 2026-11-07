@@ -1,5 +1,5 @@
 ##Copied from gpme repo##
-
+##More edits adapted from Ai-Lun's code##
 
 functions {
   vector gp_pred_rng(array[] real x2,
@@ -28,16 +28,16 @@ functions {
 
 data {
   int<lower=1> N_tree; //Number of individual trees
-  int<lower=1> N_obs;
+  int<lower=1> N_obs; //Number of total observation
   int<lower=1> N_all_year_obs;
   
   vector[N_obs] temp_obs;
   
-  array[N_tree] int<lower=1> start;
+  array[N_tree] int<lower=1> start; //use for subset each individual
   array[N_tree] int<lower=1> end;
   
-  array[N_tree] int<lower=1, upper=N_obs> N_obs_tree; # Number of Observations per Tree
-  array[N_all_year_obs] int all_year_obs; # List of all Years Used
+  array[N_tree] int<lower=1, upper=N_obs> N_obs_tree; # Number of observations per Tree
+  array[N_all_year_obs] int all_year_obs; # List of all years Used
   
   # Year and rw observations
   real year_obs[N_obs]; 
@@ -90,5 +90,6 @@ generated quantities {
                                     gamma, rho, sigma, 1e-10);
   
     rw_pred[start[i]:end[i]] = normal_rng(f[start[i]:end[i]], sigma);
+    // subset year for each individual core, taking out the climate part, leave only the prediction from GP
   }
 }
