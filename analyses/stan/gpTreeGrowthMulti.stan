@@ -4,21 +4,21 @@
 functions {
   vector gp_pred_rng(array[] real x2,
                      vector y1, array[] real x1,
-                     real alpha, real rho, real sigma, real delta) {
+                     real gamma, real rho, real sigma, real delta) {
     int N1 = rows(y1);
     int N2 = size(x2);
     vector[N2] f2;
     {
-      matrix[N1, N1] K =    gp_exp_quad_cov(x1, alpha, rho)
+      matrix[N1, N1] K =    gp_exp_quad_cov(x1, gamma, rho)
                          + diag_matrix(rep_vector(square(sigma), N1));
       matrix[N1, N1] L_K = cholesky_decompose(K);
 
       vector[N1] L_K_div_y1 = mdivide_left_tri_low(L_K, y1);
       vector[N1] K_div_y1 = mdivide_right_tri_low(L_K_div_y1', L_K)';
-      matrix[N1, N2] k_x1_x2 =  gp_exp_quad_cov(x1, x2, alpha, rho);
+      matrix[N1, N2] k_x1_x2 =  gp_exp_quad_cov(x1, x2, gamma, rho);
       vector[N2] f2_mu = (k_x1_x2' * K_div_y1);
       matrix[N1, N2] v_pred = mdivide_left_tri_low(L_K, k_x1_x2);
-      matrix[N2, N2] cov_f2 =    gp_exp_quad_cov(x2, alpha, rho) - v_pred' * v_pred
+      matrix[N2, N2] cov_f2 =    gp_exp_quad_cov(x2, gamma, rho) - v_pred' * v_pred
                               + diag_matrix(rep_vector(delta, N2));
       f2 = multi_normal_rng(f2_mu, cov_f2);
     }
@@ -55,7 +55,7 @@ parameters {
 transformed parameters{
   vector[N_obs] y_clim;
   for (n in 1:N_obs){
-    y_clim[n] = alpha + beta * temp_obs[n];
+    y_clim[n] = alpha + beta * (temp_obs[n] - 10);
   }
 }
 
@@ -84,12 +84,13 @@ generated quantities {
   array[N_obs] real rw_pred;
   
   for (i in 1:N_tree){
-    f[start[i]:end[i]] = gp_pred_rng(year_obs[start[i]:end[i]], 
+    f[start[i]:end[i]] = y_clim[start[i]:end[i]]
+                     + gp_pred_rng(year_obs[start[i]:end[i]], 
                                     rw_obs[start[i]:end[i]] - y_clim[start[i]:end[i]], 
                                     year_obs[start[i]:end[i]],
                                     gamma, rho, sigma, 1e-10);
   
     rw_pred[start[i]:end[i]] = normal_rng(f[start[i]:end[i]], sigma);
-    // subset year for each individual core, taking out the climate part, leave only the prediction from GP
+    
   }
 }
