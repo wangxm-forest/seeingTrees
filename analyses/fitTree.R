@@ -13,9 +13,12 @@ setwd("C:/PhD/Project/PhD_thesis/seeingTrees/analyses")
 util <- new.env()
 source("mcmc_analysis_tools_rstan.R", local=util)
 source("mcmc_visualization_tools.R", local=util)
-# Read in the climate data
 
-climate <- readRDS("C:/PhD/Project/PhD_thesis/seeingTrees/data/climate/wldas_climpredictors_updated.rds")
+# Read in the WLDAS climate data
+wldas <- readRDS("C:/PhD/Project/PhD_thesis/seeingTrees/data/climate/wldas_climpredictors_updated.rds")
+
+# Read in the climateNA climate data
+climateNA <- read.csv("C:/PhD/Project/PhD_thesis/seeingTrees/data/climate/climateNA/climateNAMORAStands.csv")
 
 # Read in the ring width data
 AB08THSE <- read.rwl("C:/PhD/Project/PhD_thesis/seeingTrees/data/treeCores/AB08_TSHE_dated.rwl", format = "auto")
@@ -50,15 +53,15 @@ y <- oneTree_1980$width*10
 
 
 ## subset to AB08
-climate_AB08 <- climate[climate$plotname == "AB08",]
-gdd <- climate_AB08$gdd_ings/100
+wldas_AB08 <- wldas[wldas$plotname == "AB08",]
+gdd_wldas <- wldas_AB08$gdd_ings/100
 
 
 data <- list(
   N_obs = length(x),
   x_obs = x,
   y_obs = y,
-  temp_obs = gdd,
+  temp_obs = gdd_wldas,
   
   N_pred = length(x),
   x_pred = x)
@@ -99,3 +102,64 @@ points(data$x_obs + shift, data$y_obs, pch=16, cex=1, col="white")
 points(data$x_obs + shift, data$y_obs, pch=16, cex=0.5, col="black")
 
 
+# Model multiple trees
+ring <- data.frame(
+  year = rep(as.integer(rownames(ring)), times = ncol(ring)),
+  tree = rep(colnames(ring), each = nrow(ring)),
+  rw   = as.vector(as.matrix(ring))
+)
+ring <- rings[!is.na(ring$rw), ]
+
+climateNA_AB08 <- climateNA[climateNA$stand_id == "AB08",]
+climateNA_AB08$DD5 <- climateNA_AB08$DD5/100
+
+gdd_climateNA <- data.frame(year = as.integer(climateNA_AB08[["year"]]), temp = climateNA_AB08[["DD5"]])
+
+n_before <- nrow(ring)
+ring <- merge(ring, gdd_climateNA, by = "year")
+ring <- ring[!is.na(ring$temp), ]
+ring <- ring[order(ring$tree, ring$year), ]
+
+tree_id <- unique(ring$tree)
+n_tree <- as.integer(table(factor(ring$tree, levels = tree_id)))
+
+end <- cumsum(n_tree)
+start <- end - n_tree + 1
+
+all_year_obs <- seq_len(max(n_tree))
+
+stan_data <- list(
+  N_tree = length(n_tree),
+  N_obs = nrow(ring),
+  N_all_year_obs = length(all_year_obs),
+  temp_obs = ring$temp,
+  start = as.integer(start),
+  end = as.integer(end),
+  N_obs_tree = as.integer(n_tree),
+  all_year_obs = as.integer(all_year_obs),
+  year_obs = as.numeric(ring$year),
+  rw_obs = ring$rw
+)
+
+modelhere <- stan_model('stan/gpTreeGrowthMulti.stan')
+fit <- sampling(modelhere, data = stan_data, iter = 4000, warmup = 3000, chains = 4, cores = 4)
+
+diagnostics <- util$extract_hmc_diagnostics(fit)
+util$check_all_hmc_diagnostics(diagnostics)
+
+samples <- util$extract_expectand_vals(fit)
+base_samples <- util$filter_expectands(samples, c('rho', 'gamma', 'sigma'))
+util$check_all_expectand_diagnostics(base_samples)
+
+pdf("figures/climateNAAB08.pdf", width = 15, height = 15)
+par(mfrow = c(2, 2), mar = c(4,4,1,1))
+
+for (i in seq_len(stan_data$N_tree)) {
+  idx <- stan_data$start[i]:stan_data$end[i]
+  names <- paste0("rw_pred[", idx, "]")
+  util$plot_conn_pushforward_quantiles(samples, names, stan_data$year_obs[idx],xlab = "Year", ylab = "Ring width", main = tree_id[i])
+  points(stan_data$year_obs[idx], stan_data$rw_obs[idx], pch = 16, cex = 1,   col = "white")
+  points(stan_data$year_obs[idx], stan_data$rw_obs[idx], pch = 16, cex = 0.5, col = "black")
+}
+
+dev.off()
