@@ -102,13 +102,13 @@ points(data$x_obs + shift, data$y_obs, pch=16, cex=1, col="white")
 points(data$x_obs + shift, data$y_obs, pch=16, cex=0.5, col="black")
 
 
-# Model multiple trees
+# Posterior predictive check ----
 ring <- data.frame(
   year = rep(as.integer(rownames(ring)), times = ncol(ring)),
   tree = rep(colnames(ring), each = nrow(ring)),
   rw   = as.vector(as.matrix(ring))
 )
-ring <- rings[!is.na(ring$rw), ]
+ring <- ring[!is.na(ring$rw), ]
 
 climateNA_AB08 <- climateNA[climateNA$stand_id == "AB08",]
 climateNA_AB08$DD5 <- climateNA_AB08$DD5/100
@@ -138,7 +138,7 @@ stan_data <- list(
   N_obs_tree = as.integer(n_tree),
   all_year_obs = as.integer(all_year_obs),
   year_obs = as.numeric(ring$year),
-  rw_obs = ring$rw
+  log_rw_obs = log(as.numeric(ring$rw))
 )
 
 modelhere <- stan_model('stan/gpTreeGrowthMulti.stan')
@@ -151,15 +151,47 @@ samples <- util$extract_expectand_vals(fit)
 base_samples <- util$filter_expectands(samples, c('rho', 'gamma', 'sigma'))
 util$check_all_expectand_diagnostics(base_samples)
 
+names(samples)
+
+names <- c(grep('alpha', names(samples), value = TRUE),
+           grep('beta', names(samples), value = TRUE),
+           grep('rho', names(samples), value = TRUE),
+           grep('gamma', names(samples), value = TRUE),
+           grep('sigma', names(samples), value = TRUE))
+
+print(fit, pars = names)
+
+## Posterior predictive check ----
 pdf("figures/climateNAAB08.pdf", width = 15, height = 15)
 par(mfrow = c(2, 2), mar = c(4,4,1,1))
 
 for (i in seq_len(stan_data$N_tree)) {
   idx <- stan_data$start[i]:stan_data$end[i]
-  names <- paste0("rw_pred[", idx, "]")
-  util$plot_conn_pushforward_quantiles(samples, names, stan_data$year_obs[idx],xlab = "Year", ylab = "Ring width", main = tree_id[i])
-  points(stan_data$year_obs[idx], stan_data$rw_obs[idx], pch = 16, cex = 1,   col = "white")
-  points(stan_data$year_obs[idx], stan_data$rw_obs[idx], pch = 16, cex = 0.5, col = "black")
+  names_log <- paste0("log_rw_pred[", idx, "]")
+  names_natural <- paste0("rw_pred[", idx, "]")
+  
+  for (k in seq_along(idx)){
+    samples[[names_natural[k]]] <- exp(samples[[names_log[k]]])
+  }
+  util$plot_conn_pushforward_quantiles(samples, names_natural, stan_data$year_obs[idx],xlab = "Year", ylab = "Ring width", main = tree_id[i])
+  
+  rw_natural <- exp(stan_data$log_rw_obs[idx])
+  points(stan_data$year_obs[idx], rw_natural, pch = 16, cex = 1,   col = "white")
+  points(stan_data$year_obs[idx], rw_natural, pch = 16, cex = 0.5, col = "black")
 }
+
+dev.off()
+
+## Posterior for the gp parameters ----
+pdf("figures/climateNAAB08TsheParameters.pdf", width = 9, height = 3)
+par(mfrow = c(1, 2), mar = c(4,4,1,1))
+
+util$plot_expectand_pushforward(samples[["rho"]], 50,
+                                display_name = "rho",
+                                flim = c(-10, 10))
+
+util$plot_expectand_pushforward(samples[["gamma"]], 25,
+                                display_name = "gamma",
+                                flim = c(-1, 1))
 
 dev.off()

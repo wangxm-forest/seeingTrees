@@ -41,7 +41,7 @@ data {
   
   # Year and rw observations
   real year_obs[N_obs]; 
-  vector[N_obs] rw_obs;
+  vector[N_obs] log_rw_obs;
 }
 
 parameters {
@@ -75,22 +75,22 @@ model {
  # Subset L_cov for each tree
   for (i in 1:N_tree){
     matrix[N_obs_tree[i], N_obs_tree[i]] L_cov_tree = block(L_cov, 1, 1, N_obs_tree[i], N_obs_tree[i]);
-    rw_obs[start[i]:end[i]] ~ multi_normal_cholesky(y_clim[start[i]:end[i]], L_cov_tree);
+    log_rw_obs[start[i]:end[i]] ~ multi_normal_cholesky(y_clim[start[i]:end[i]], L_cov_tree);
   }
 }
 
 generated quantities {
   vector[N_obs] f;
-  array[N_obs] real rw_pred;
+  array[N_obs] real log_rw_pred;
   
   for (i in 1:N_tree){
     f[start[i]:end[i]] = y_clim[start[i]:end[i]]
                      + gp_pred_rng(year_obs[start[i]:end[i]], 
-                                    rw_obs[start[i]:end[i]] - y_clim[start[i]:end[i]], 
+                                    log_rw_obs[start[i]:end[i]] - y_clim[start[i]:end[i]], 
                                     year_obs[start[i]:end[i]],
                                     gamma, rho, sigma, 1e-10);
   
-    rw_pred[start[i]:end[i]] = normal_rng(f[start[i]:end[i]], sigma);
+    log_rw_pred[start[i]:end[i]] = normal_rng(f[start[i]:end[i]], sigma);
     
   }
 }
