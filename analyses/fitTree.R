@@ -184,7 +184,7 @@ dev.off()
 
 ## Posterior for the gp parameters ----
 pdf("figures/climateNAAB08TsheParameters.pdf", width = 9, height = 3)
-par(mfrow = c(1, 2), mar = c(4,4,1,1))
+par(mfrow = c(1, 3), mar = c(4,4,1,1))
 
 util$plot_expectand_pushforward(samples[["rho"]], 100,
                                 display_name = "rho",
@@ -193,5 +193,10 @@ util$plot_expectand_pushforward(samples[["rho"]], 100,
 util$plot_expectand_pushforward(samples[["gamma"]], 100,
                                 display_name = "gamma",
                                 flim = c(0, 1))
+
+util$plot_expectand_pushforward(samples[["beta"]], 100,
+                                display_name = "beta",
+                                flim = c(0, 1))
+
 
 dev.off()

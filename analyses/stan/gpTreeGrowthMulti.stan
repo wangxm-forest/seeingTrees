@@ -55,7 +55,7 @@ parameters {
 transformed parameters{
   vector[N_obs] y_clim;
   for (n in 1:N_obs){
-    y_clim[n] = alpha + beta * (temp_obs[n] - 10);
+    y_clim[n] = alpha + beta * (temp_obs[n] - 1);
   }
 }
 
