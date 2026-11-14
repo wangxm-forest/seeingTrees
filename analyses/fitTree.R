@@ -36,7 +36,7 @@ ring <- sapply(split(seq_along(treeID), treeID), function(i) {
 
 rownames(ring) <- rownames(AB08THSE)
 
-# Get data for only one tree
+# Run model with only one tree ----
 oneTree <- data.frame(
   year  = as.numeric(rownames(ring)),
   width = ring[, "4195"]
@@ -102,7 +102,7 @@ points(data$x_obs + shift, data$y_obs, pch=16, cex=1, col="white")
 points(data$x_obs + shift, data$y_obs, pch=16, cex=0.5, col="black")
 
 
-# Posterior predictive check ----
+# Multiple trees ----
 ring <- data.frame(
   year = rep(as.integer(rownames(ring)), times = ncol(ring)),
   tree = rep(colnames(ring), each = nrow(ring)),
@@ -111,7 +111,7 @@ ring <- data.frame(
 ring <- ring[!is.na(ring$rw), ]
 
 climateNA_AB08 <- climateNA[climateNA$stand_id == "AB08",]
-climateNA_AB08$DD5 <- climateNA_AB08$DD5/100
+climateNA_AB08$DD5 <- climateNA_AB08$DD5/1000
 
 gdd_climateNA <- data.frame(year = as.integer(climateNA_AB08[["year"]]), temp = climateNA_AB08[["DD5"]])
 
@@ -186,12 +186,12 @@ dev.off()
 pdf("figures/climateNAAB08TsheParameters.pdf", width = 9, height = 3)
 par(mfrow = c(1, 2), mar = c(4,4,1,1))
 
-util$plot_expectand_pushforward(samples[["rho"]], 50,
+util$plot_expectand_pushforward(samples[["rho"]], 100,
                                 display_name = "rho",
-                                flim = c(-10, 10))
+                                flim = c(0, 10))
 
-util$plot_expectand_pushforward(samples[["gamma"]], 25,
+util$plot_expectand_pushforward(samples[["gamma"]], 100,
                                 display_name = "gamma",
-                                flim = c(-1, 1))
+                                flim = c(0, 1))
 
 dev.off()
