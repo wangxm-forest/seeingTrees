@@ -155,8 +155,10 @@ names(samples)
 
 names <- c(grep('alpha', names(samples), value = TRUE),
            grep('beta', names(samples), value = TRUE),
-           grep('rho', names(samples), value = TRUE),
-           grep('gamma', names(samples), value = TRUE),
+           grep('rho_long', names(samples), value = TRUE),
+           grep('gamma_long', names(samples), value = TRUE),
+           grep('rho_short', names(samples), value = TRUE),
+           grep('gamma_short', names(samples), value = TRUE),
            grep('sigma', names(samples), value = TRUE))
 
 print(fit, pars = names)
@@ -175,9 +177,8 @@ for (i in seq_len(stan_data$N_tree)) {
   }
   util$plot_conn_pushforward_quantiles(samples, names_natural, stan_data$year_obs[idx],xlab = "Year", ylab = "Ring width", main = tree_id[i])
   
-  rw_natural <- exp(stan_data$log_rw_obs[idx])
-  points(stan_data$year_obs[idx], rw_natural, pch = 16, cex = 1,   col = "white")
-  points(stan_data$year_obs[idx], rw_natural, pch = 16, cex = 0.5, col = "black")
+  points(stan_data$year_obs[idx], exp(stan_data$log_rw_obs[idx]), pch = 16, cex = 1,   col = "white")
+  points(stan_data$year_obs[idx], exp(stan_data$log_rw_obs[idx]), pch = 16, cex = 0.5, col = "black")
 }
 
 dev.off()
@@ -196,7 +197,7 @@ util$plot_expectand_pushforward(samples[["gamma"]], 100,
 
 util$plot_expectand_pushforward(samples[["beta"]], 100,
                                 display_name = "beta",
-                                flim = c(0, 1))
+                                flim = c(-0.5, 0.5))
 
 
 dev.off()
